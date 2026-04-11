@@ -94,6 +94,9 @@
   "close": "閉じる",
   "comment": {
     "empty": "コメント内容は空にできません",
+    "guest_name": {
+      "placeholder": "ニックネーム（任意）"
+    },
     "placeholder": {
       "title": "何か言ってください..."
     },
