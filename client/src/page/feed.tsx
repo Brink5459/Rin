@@ -376,64 +376,98 @@ function CommentInput({
 }) {
   const { t } = useTranslation();
   const [content, setContent] = useState("");
+  const [guestName, setGuestName] = useState("");
+  const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState("");
   const { showAlert, AlertUI } = useAlert();
   const profile = useContext(ProfileContext);
-  const [, setLocation] = useLocation();
   function errorHumanize(error: string) {
     if (error === "Unauthorized") return t("login.required");
     else if (error === "Content is required") return t("comment.empty");
     return error;
   }
   function submit() {
-    if (!profile) {
-      setLocation('/login')
-      return;
-    }
     client.comment
-      .create(parseInt(id), { content })
+      .create(parseInt(id), { content, guestName: guestName.trim() || undefined })
       .then(({ error }) => {
         if (error) {
           setError(errorHumanize(error.value as string));
         } else {
           setContent("");
+          setGuestName("");
           setError("");
+          setExpanded(false);
           showAlert(t("comment.success"), () => {
             onRefresh();
           });
         }
       });
   }
-  return (
-    <div className="w-full rounded-2xl bg-w t-primary p-6 items-end flex flex-col">
-      <div className="flex flex-col w-full items-start mb-4">
-        <label htmlFor="comment">{t("comment.title")}</label>
-      </div>
-      {profile ? (<>
-        <textarea
-          id="comment"
+  if (!expanded) {
+    return (
+      <div className="w-full rounded-xl bg-w t-primary px-4 py-3 flex flex-row items-center gap-2">
+        {!profile && (
+          <input
+            type="text"
+            placeholder={t("comment.guest_name.placeholder", "昵称（可选）")}
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value)}
+            className="bg-secondary rounded-lg px-3 py-1.5 text-sm w-28 shrink-0"
+            maxLength={20}
+          />
+        )}
+        <input
+          type="text"
           placeholder={t("comment.placeholder.title")}
-          className="bg-w w-full h-24 rounded-lg"
           value={content}
           onChange={(e) => setContent(e.target.value)}
+          onFocus={() => setExpanded(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && content.trim()) { e.preventDefault(); setExpanded(true); } }}
+          className="bg-secondary rounded-lg px-3 py-1.5 text-sm flex-1 min-w-0"
         />
         <button
-          className="mt-4 bg-theme text-white px-4 py-2 rounded-full"
+          className="shrink-0 bg-theme text-white px-3 py-1.5 rounded-full text-sm"
+          onClick={() => setExpanded(true)}
+        >
+          {t("comment.submit")}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="w-full rounded-xl bg-w t-primary p-4 flex flex-col gap-2">
+      {!profile && (
+        <input
+          type="text"
+          placeholder={t("comment.guest_name.placeholder", "昵称（可选）")}
+          value={guestName}
+          onChange={(e) => setGuestName(e.target.value)}
+          className="bg-secondary rounded-lg px-3 py-1.5 text-sm w-48"
+          maxLength={20}
+        />
+      )}
+      <textarea
+        placeholder={t("comment.placeholder.title")}
+        className="bg-secondary w-full h-20 rounded-lg px-3 py-2 text-sm resize-none"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        autoFocus
+      />
+      <div className="flex flex-row justify-end gap-2">
+        <button
+          className="px-3 py-1.5 rounded-full text-sm text-neutral-500 hover:text-neutral-700"
+          onClick={() => setExpanded(false)}
+        >
+          {t("cancel", "取消")}
+        </button>
+        <button
+          className="bg-theme text-white px-4 py-1.5 rounded-full text-sm"
           onClick={submit}
         >
           {t("comment.submit")}
         </button>
-      </>      ) : (
-        <div className="flex flex-row w-full items-center justify-center space-x-2 py-12">
-          <button
-            className="mt-2 bg-theme text-white px-4 py-2 rounded-full"
-            onClick={() => setLocation('/login')}
-          >
-            {t("login.required")}
-          </button>
-        </div>
-      )}
-      {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+      </div>
+      {error && <p className="text-red-500 text-sm">{error}</p>}
       <AlertUI />
     </div>
   );
