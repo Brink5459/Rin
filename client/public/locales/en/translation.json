@@ -94,6 +94,9 @@
   "close": "Close",
   "comment": {
     "empty": "Comment cannot be empty",
+    "guest_name": {
+      "placeholder": "Nickname (optional)"
+    },
     "placeholder": {
       "title": "Say something..."
     },
