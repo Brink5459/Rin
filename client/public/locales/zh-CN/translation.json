@@ -94,6 +94,9 @@
   "close": "关闭",
   "comment": {
     "empty": "评论内容不能为空",
+    "guest_name": {
+      "placeholder": "昵称（可选）"
+    },
     "placeholder": {
       "title": "说点什么吧"
     },
