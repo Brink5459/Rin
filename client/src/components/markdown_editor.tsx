@@ -1,6 +1,6 @@
 import Editor from '@monaco-editor/react';
 import { editor } from 'monaco-editor';
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import Loading from 'react-loading';
 import { FlatInset, FlatTabButton } from "@rin/ui";
@@ -9,6 +9,84 @@ import { useColorMode } from "../utils/darkModeUtils";
 import { buildMarkdownImage, uploadImageFile } from "../utils/image-upload";
 import { Markdown } from "./markdown";
 
+type ToolbarAction = {
+  icon: string;
+  label: string;
+  prefix: string;
+  suffix: string;
+  block?: boolean;
+  placeholder?: string;
+};
+
+const TOOLBAR_ACTIONS: ToolbarAction[] = [
+  { icon: "ri-bold", label: "Bold", prefix: "**", suffix: "**", placeholder: "bold text" },
+  { icon: "ri-italic", label: "Italic", prefix: "*", suffix: "*", placeholder: "italic text" },
+  { icon: "ri-strikethrough", label: "Strikethrough", prefix: "~~", suffix: "~~", placeholder: "strikethrough" },
+  { icon: "ri-mark-pen-line", label: "Highlight", prefix: "==", suffix: "==", placeholder: "highlighted text" },
+  { icon: "ri-separator", label: "Separator", prefix: "\n---\n", suffix: "", block: true },
+  { icon: "ri-h-1", label: "Heading 1", prefix: "# ", suffix: "", block: true, placeholder: "Heading 1" },
+  { icon: "ri-h-2", label: "Heading 2", prefix: "## ", suffix: "", block: true, placeholder: "Heading 2" },
+  { icon: "ri-h-3", label: "Heading 3", prefix: "### ", suffix: "", block: true, placeholder: "Heading 3" },
+  { icon: "ri-list-unordered", label: "Unordered List", prefix: "- ", suffix: "", block: true, placeholder: "list item" },
+  { icon: "ri-list-ordered", label: "Ordered List", prefix: "1. ", suffix: "", block: true, placeholder: "list item" },
+  { icon: "ri-list-check-2", label: "Task List", prefix: "- [ ] ", suffix: "", block: true, placeholder: "task item" },
+  { icon: "ri-double-quotes-l", label: "Blockquote", prefix: "> ", suffix: "", block: true, placeholder: "quote" },
+  { icon: "ri-code-s-slash-line", label: "Inline Code", prefix: "`", suffix: "`", placeholder: "code" },
+  { icon: "ri-code-box-line", label: "Code Block", prefix: "```language\n", suffix: "\n```", block: true, placeholder: "code here" },
+  { icon: "ri-link", label: "Link", prefix: "[", suffix: "](url)", placeholder: "link text" },
+  { icon: "ri-table-line", label: "Table", prefix: "\n| Header | Header |\n| ------ | ------ |\n| Cell | Cell |\n", suffix: "", block: true },
+  { icon: "ri-math-line", label: "Math", prefix: "$", suffix: "$", placeholder: "formula" },
+];
+
+function EditorToolbar({ editorRef }: { editorRef: React.MutableRefObject<editor.IStandaloneCodeEditor | undefined> }) {
+  const handleAction = useCallback((action: ToolbarAction) => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const selection = ed.getSelection();
+    if (!selection) return;
+
+    const selectedText = ed.getModel()?.getValueInRange(selection) || "";
+    const isEmpty = selectedText.length === 0;
+
+    let insertText: string;
+
+    if (action.block && isEmpty) {
+      const lineStart = { lineNumber: selection.startLineNumber, column: 1 };
+      const lineEnd = { lineNumber: selection.startLineNumber, column: ed.getModel()!.getLineMaxColumn(selection.startLineNumber) };
+      const lineContent = ed.getModel()!.getValueInRange({ startLineNumber: lineStart.lineNumber, startColumn: lineStart.column, endLineNumber: lineEnd.lineNumber, endColumn: lineEnd.column });
+      const prefix = lineContent.length === 0 ? action.prefix : "\n" + action.prefix;
+      insertText = prefix + (action.placeholder || "") + action.suffix;
+    } else if (action.block && !isEmpty) {
+      const lines = selectedText.split("\n");
+      const wrapped = lines.map(line => action.prefix + line + action.suffix).join("\n");
+      insertText = "\n" + wrapped + "\n";
+    } else if (isEmpty) {
+      insertText = action.prefix + (action.placeholder || "") + action.suffix;
+    } else {
+      insertText = action.prefix + selectedText + action.suffix;
+    }
+
+    const op = { identifier: { major: 1, minor: 1 }, range: selection, text: insertText, forceMoveMarkers: true };
+    ed.executeEdits("toolbar", [op]);
+    ed.focus();
+  }, [editorRef]);
+
+  return (
+    <div className="flex flex-wrap items-center gap-0.5 border-b border-black/5 px-2 py-1 dark:border-white/5">
+      {TOOLBAR_ACTIONS.map((action) => (
+        <button
+          key={action.label}
+          type="button"
+          title={action.label}
+          onClick={() => handleAction(action)}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+        >
+          <i className={`${action.icon} text-base`} />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 interface MarkdownEditorProps {
   content: string;
@@ -170,6 +248,7 @@ export function MarkdownEditor({ content, setContent, placeholder = "> Write you
       </FlatInset>
       <div className={`grid grid-cols-1 gap-0 sm:gap-4 ${preview === 'comparison' ? "lg:grid-cols-2" : ""}`}>
         <div className={"flex min-w-0 flex-col " + (preview === 'preview' ? "hidden" : "")}>
+          {preview !== 'preview' && <EditorToolbar editorRef={editorRef} />}
           <div
             className={"relative min-h-0 overflow-hidden rounded-none border-0 bg-w"}
             onDrop={(e) => {
