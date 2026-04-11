@@ -175,6 +175,7 @@ export interface Comment {
 
 export interface CreateCommentRequest {
   content: string;
+  guestName?: string;
 }
 
 // ============================================================================
